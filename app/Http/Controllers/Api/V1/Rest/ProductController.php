@@ -26,8 +26,8 @@ class ProductController extends Controller
         $query->leftJoin('categories', 'categories.id', '=', 'products.category_id')
         ->select('products.*', 'categories.name as category_name');
 
-        if ($request->has('category_id') && !empty($request->group_id)) {
-            $query->where('category_id', $request->group_id);
+        if ($request->has('category_id') && !empty($request->category_id)) {
+            $query->where('category_id', $request->category_id);
         }
 
         if ($request->has('order') && !empty($request->order)) {
