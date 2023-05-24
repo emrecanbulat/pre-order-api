@@ -1,6 +1,5 @@
 <?php
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -18,6 +17,6 @@ use Illuminate\Support\Facades\Route;
 //    return $request->user();
 //});
 
-Route::group([], function () {
-    Route::prefix('v1')->group(base_path('routes/api/v1/rest.php'));
-});
+
+Route::prefix('v1')->group(base_path('routes/api/v1/rest.php'));
+
