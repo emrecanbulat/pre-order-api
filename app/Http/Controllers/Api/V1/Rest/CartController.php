@@ -7,6 +7,7 @@ use App\Http\Requests\User\CartRequest;
 use App\Http\Resources\Api\CartResource;
 use App\Libraries\Helper;
 use App\Models\Cart;
+use App\Models\Product;
 use Illuminate\Database\Eloquent\Builder;
 use Exception;
 use Illuminate\Http\JsonResponse;
@@ -32,6 +33,27 @@ class CartController extends Controller
             }
 
             return new JsonResponse(['message' => 'Product added to cart'], 200);
+        } catch (Exception $e) {
+            return new JsonResponse(['message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @param CartRequest $request
+     * @return JsonResponse
+     */
+    public function removeFromCart(CartRequest $request): JsonResponse
+    {
+        try {
+            $cart = Cart::where('user_id', auth()->user()->id)->where('product_id', $request->product_id)->first();
+            if (!empty($cart)) {
+                $cart->quantity -= $request->quantity;
+                if ($cart->quantity <= 0) {
+                    $cart->destroy($cart->id);
+                }
+                $cart->save();
+            }
+            return new JsonResponse(['message' => 'Product removed from cart'], 200);
         } catch (Exception $e) {
             return new JsonResponse(['message' => $e->getMessage()], 500);
         }
@@ -92,7 +114,7 @@ class CartController extends Controller
         try {
             Cart::where('user_id', auth()->user()->id)->delete();
             return new JsonResponse(['message' => 'Your cart has been emptied'], 200);
-        }catch (Exception $e){
+        } catch (Exception $e) {
             return new JsonResponse(['message' => $e->getMessage()], 500);
         }
     }

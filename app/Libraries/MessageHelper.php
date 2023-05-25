@@ -7,15 +7,17 @@ use Twilio\Exceptions\TwilioException;
 use Twilio\Rest\Client;
 class MessageHelper
 {
+    const APPROVED_MESSAGE = "Your order has been approved.";
+    const REJECTED_MESSAGE = "Your order has been rejected.";
 
     /**
-     * @param $message
-     * @param $recipients
+     * @param string $message
+     * @param string $recipients
      * @return void
      * @throws ConfigurationException
      * @throws TwilioException
      */
-    public static function sendMessage($message, $recipients): void
+    public static function sendMessage(string $message, string $recipients): void
     {
         $account_sid = getenv("TWILIO_SID");
         $auth_token = getenv("TWILIO_AUTH_TOKEN");
