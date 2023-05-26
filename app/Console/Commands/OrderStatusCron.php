@@ -42,7 +42,7 @@ class OrderStatusCron extends Command
 
             try {
                 logger()->info('Sending message to user: ' . $order->user->phone);
-                MessageHelper::sendMessage(MessageHelper::REJECTED_MESSAGE, "+905551808618");//$order->user->phone);
+                MessageHelper::sendMessage(MessageHelper::REJECTED_MESSAGE, $order->user->phone);
             } catch (ConfigurationException $e) {
                 logger()->info('Twilio configuration error: ' . $e->getMessage());
             } catch (TwilioException $e) {

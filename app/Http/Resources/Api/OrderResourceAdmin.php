@@ -19,8 +19,8 @@ class OrderResourceAdmin extends JsonResource
             'id' => $this->id,
             'order_date' => date('Y-m-d H:i:s', strtotime($this->created_at)),
             'status' => $this->status,
-            'user_full_name' => $this->user_full_name,
-            'user_id'=> $this->user_id,
+            'user' => $this->user()->select('id', 'name', 'email')->first(),
+            'products' => $this->products()->select('name', 'price', 'quantity')->get(),
         ];
     }
 }

@@ -17,11 +17,14 @@ class AuthController extends Controller
     public function login(Request $request): JsonResponse
     {
         $user = User::where('email', $request->email)->first();
-        if(!empty($user) && Hash::check($request->password, $user->getAuthPassword())){
+        if (!empty($user) && Hash::check($request->password, $user->getAuthPassword())) {
+            if ($user->currentAccessToken() !== null) {
+                $user->currentAccessToken()->delete();
+            }
             return new JsonResponse([
-                'token' =>$user->createToken('authToken')->plainTextToken
+                'token' => $user->createToken('authToken')->plainTextToken
             ]);
         }
-        return new JsonResponse(['message' =>'Invalid Credentials'], 401);
+        return new JsonResponse(['message' => 'Invalid Credentials'], 401);
     }
 }

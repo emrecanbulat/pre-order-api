@@ -30,10 +30,6 @@ class ProductController extends Controller
             $query->where('category_id', $request->category_id);
         }
 
-        if ($request->has('order') && !empty($request->order)) {
-            $query->orderby($request->order);
-        }
-
         if ($request->has('search') && !empty($request->search)) {
             $search = $request->search;
             $query->where(function (Builder $query) use ($search) {

@@ -19,6 +19,7 @@ class OrderResourceUser extends JsonResource
             'id' => $this->id,
             'order_date' => date('Y-m-d H:i:s', strtotime($this->created_at)),
             'status' => $this->status,
+            'products' => $this->products()->select('name', 'price', 'quantity')->get(),
         ];
     }
 }

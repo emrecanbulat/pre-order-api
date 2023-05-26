@@ -8,11 +8,18 @@ use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 class Kernel extends ConsoleKernel
 {
     /**
+     * @var string[] $commands
+     */
+    protected $commands = [
+        'App\Console\Commands\OrderStatusCron',
+    ];
+
+    /**
      * Define the application's command schedule.
      */
     protected function schedule(Schedule $schedule): void
     {
-        $schedule->command('order-status:cron')->everyFiveMinutes();
+        $schedule->command('order-status:cron')->everyThirtyMinutes();
     }
 
     /**

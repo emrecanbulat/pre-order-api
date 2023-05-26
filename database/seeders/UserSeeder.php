@@ -12,7 +12,7 @@ class UserSeeder extends Seeder
      *
      * @return void
      */
-    public function run()
+    public function run(): void
     {
         User::factory(1)->create([
             'name' => 'Admin',
@@ -23,7 +23,7 @@ class UserSeeder extends Seeder
         User::factory(1)->create([
             'name' => 'User',
             'email' => 'user@user.com',
-            'phone' => '+905469339509',
+            'phone' => '+15005550010',
             'role' => 'user'
         ]);
         User::factory(8)->create();

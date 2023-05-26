@@ -11,11 +11,13 @@ use App\Libraries\Helper;
 use App\Libraries\MessageHelper;
 use App\Models\Cart;
 use App\Models\Order;
-use App\Models\OrderItem;
+use App\Models\OrderProduct;
 use Exception;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Twilio\Exceptions\ConfigurationException;
+use Twilio\Exceptions\TwilioException;
 
 class OrderController extends Controller
 {
@@ -42,7 +44,7 @@ class OrderController extends Controller
             ]);
 
             foreach ($cart as $item) {
-                OrderItem::create([
+                OrderProduct::create([
                     'order_id' => $order->id,
                     'product_id' => $item->product_id,
                     'quantity' => $item->quantity,
@@ -78,15 +80,11 @@ class OrderController extends Controller
             $query->where('user_id', $request->user_id);
         }
 
-        if ($request->has('order') && !empty($request->order)) {
-            $query->orderby($request->order);
-        }
-
         if ($request->has('search') && !empty($request->search)) {
             $search = $request->search;
             $query->where(function (Builder $query) use ($search) {
                 if (is_numeric($search)) {
-                    $query->orWhere('id', $search);
+                    $query->orWhere('orders.id', $search);
                     $query->orWhere('users.id', $search);
                 }
                 $query->orWhere('users.name', 'like', '%' . $search . '%');
@@ -152,7 +150,14 @@ class OrderController extends Controller
                 $order->status = $request->status;
                 $order->save();
             }
-            MessageHelper::sendMessage(MessageHelper::APPROVED_MESSAGE, "+905469339509");
+            MessageHelper::sendMessage(MessageHelper::APPROVED_MESSAGE, $order->user->phone_number);
+
+            return new JsonResponse(['message' => 'Order status updated successfully']);
+        } catch (ConfigurationException $e) {
+            logger()->info('Twilio configuration error: ' . $e->getMessage());
+            return new JsonResponse(['message' => 'Order status updated successfully']);
+        } catch (TwilioException $e) {
+            logger()->info('Twilio error: ' . $e->getMessage());
             return new JsonResponse(['message' => 'Order status updated successfully']);
         } catch (Exception $e) {
             return new JsonResponse(['message' => $e->getMessage()], 500);

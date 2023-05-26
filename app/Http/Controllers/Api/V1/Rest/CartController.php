@@ -76,10 +76,6 @@ class CartController extends Controller
             $query->where('product_id', $request->product_id);
         }
 
-        if ($request->has('order') && !empty($request->order)) {
-            $query->orderby($request->order);
-        }
-
         if ($request->has('search') && !empty($request->search)) {
             $search = $request->search;
             $query->where(function (Builder $query) use ($search) {
