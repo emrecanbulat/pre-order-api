@@ -18,8 +18,8 @@ class AuthController extends Controller
     {
         $user = User::where('email', $request->email)->first();
         if (!empty($user) && Hash::check($request->password, $user->getAuthPassword())) {
-            if ($user->currentAccessToken() !== null) {
-                $user->currentAccessToken()->delete();
+            if ($user->tokens() !== null) {
+                $user->tokens()->delete();
             }
             return new JsonResponse([
                 'token' => $user->createToken('authToken')->plainTextToken
