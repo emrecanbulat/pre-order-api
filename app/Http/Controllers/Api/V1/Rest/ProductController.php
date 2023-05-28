@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\ProductResource;
 use App\Libraries\Helper;
 use App\Models\Product;
+use Exception;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,41 +20,47 @@ class ProductController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $limit = $request->get('limit', 20);
-        $limit = min($limit, 100);
+        try {
+            $limit = $request->get('limit', 20);
+            $limit = min($limit, 100);
 
-        $query = Product::query();
-        $query->leftJoin('categories', 'categories.id', '=', 'products.category_id')
-        ->select('products.*', 'categories.name as category_name');
+            $query = Product::query();
+            $query->leftJoin('categories', 'categories.id', '=', 'products.category_id')
+                ->select('products.*', 'categories.name as category_name');
 
-        if ($request->has('category_id') && !empty($request->category_id)) {
-            $query->where('category_id', $request->category_id);
+            if ($request->has('category_id') && !empty($request->category_id)) {
+                $query->where('category_id', $request->category_id);
+            }
+
+            if ($request->has('search') && !empty($request->search)) {
+                $search = $request->search;
+                $query->where(function (Builder $query) use ($search) {
+                    if (is_numeric($search)) {
+                        $query->orWhere('products.id', $search);
+                        $query->orWhere('products.price', $search);
+                    }
+                    $query->orWhere('products.name', 'like', '%' . $search . '%');
+                    $query->orWhere('products.description', 'like', '%' . $search . '%');
+                    $query->orWhere('categories.name', 'like', '%' . $search . '%');
+                    return $query;
+                });
+            }
+
+            $data = Helper::getPaginationResults($query, $limit);
+
+            return new JsonResponse([
+                'data' => ProductResource::collection($data),
+                'paginate' => [
+                    'total' => $data->total(),
+                    'count' => $data->count(),
+                    'per_page' => $data->perPage(),
+                    'current_page' => $data->currentPage(),
+                    'total_pages' => $data->lastPage()
+                ]
+            ]);
+        } catch (Exception $exception) {
+            logger()->error($exception->getMessage());
+            return new JsonResponse(['message' => "Please check your request parameters and try again",], 400);
         }
-
-        if ($request->has('search') && !empty($request->search)) {
-            $search = $request->search;
-            $query->where(function (Builder $query) use ($search) {
-                if (is_numeric($search)) {
-                    $query->orWhere('id', $search);
-                    $query->orWhere('products.price', $search);
-                }
-                $query->orWhere('products.name', 'like', '%' . $search . '%');
-                $query->orWhere('products.description', 'like', '%' . $search . '%');
-                return $query;
-            });
-        }
-
-        $data = Helper::getPaginationResults($query, $limit);
-
-        return new JsonResponse([
-            'data' => ProductResource::collection($data),
-            'paginate' => [
-                'total' => $data->total(),
-                'count' => $data->count(),
-                'per_page' => $data->perPage(),
-                'current_page' => $data->currentPage(),
-                'total_pages' => $data->lastPage()
-            ]
-        ]);
     }
 }

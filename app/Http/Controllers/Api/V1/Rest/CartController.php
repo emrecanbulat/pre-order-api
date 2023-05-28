@@ -7,7 +7,6 @@ use App\Http\Requests\User\CartRequest;
 use App\Http\Resources\Api\CartResource;
 use App\Libraries\Helper;
 use App\Models\Cart;
-use App\Models\Product;
 use Illuminate\Database\Eloquent\Builder;
 use Exception;
 use Illuminate\Http\JsonResponse;
@@ -52,8 +51,9 @@ class CartController extends Controller
                     $cart->destroy($cart->id);
                 }
                 $cart->save();
+                return new JsonResponse(['message' => 'Product removed from cart'], 200);
             }
-            return new JsonResponse(['message' => 'Product removed from cart'], 200);
+            return new JsonResponse(['message' => 'The product you want to remove was not found in your cart'], 404);
         } catch (Exception $e) {
             return new JsonResponse(['message' => $e->getMessage()], 500);
         }
@@ -65,41 +65,47 @@ class CartController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $limit = $request->get('limit', 20);
-        $limit = min($limit, 100);
+        try {
+            $limit = $request->get('limit', 20);
+            $limit = min($limit, 100);
 
-        $query = Cart::query();
-        $query->leftJoin('products', 'products.id', '=', 'cart.product_id')
-            ->select('cart.*', 'products.name as product_name', 'products.price as product_price');
+            $query = Cart::query();
+            $query->leftJoin('products', 'products.id', '=', 'cart.product_id')
+                ->select('cart.*', 'products.name as product_name', 'products.price as product_price');
 
-        if ($request->has('product_id') && !empty($request->product_id)) {
-            $query->where('product_id', $request->product_id);
+            if ($request->has('product_id') && !empty($request->product_id)) {
+                $query->where('product_id', $request->product_id);
+            }
+
+            if ($request->has('search') && !empty($request->search)) {
+                $search = $request->search;
+                $query->where(function (Builder $query) use ($search) {
+                    if (is_numeric($search)) {
+                        $query->orWhere('cart.id', $search);
+                        $query->orWhere('products.id', $search);
+                        $query->orWhere('products.price', $search);
+                    }
+                    $query->orWhere('products.name', 'like', '%' . $search . '%');
+                    return $query;
+                });
+            }
+
+            $data = Helper::getPaginationResults($query, $limit);
+
+            return new JsonResponse([
+                'data' => CartResource::collection($data),
+                'paginate' => [
+                    'total' => $data->total(),
+                    'count' => $data->count(),
+                    'per_page' => $data->perPage(),
+                    'current_page' => $data->currentPage(),
+                    'total_pages' => $data->lastPage()
+                ]
+            ]);
+        } catch (Exception $exception) {
+            logger()->error($exception->getMessage());
+            return new JsonResponse(['message' => "Please check your request parameters and try again",], 400);
         }
-
-        if ($request->has('search') && !empty($request->search)) {
-            $search = $request->search;
-            $query->where(function (Builder $query) use ($search) {
-                if (is_numeric($search)) {
-                    $query->orWhere('id', $search);
-                    $query->orWhere('products.price', $search);
-                }
-                $query->orWhere('products.name', 'like', '%' . $search . '%');
-                return $query;
-            });
-        }
-
-        $data = Helper::getPaginationResults($query, $limit);
-
-        return new JsonResponse([
-            'data' => CartResource::collection($data),
-            'paginate' => [
-                'total' => $data->total(),
-                'count' => $data->count(),
-                'per_page' => $data->perPage(),
-                'current_page' => $data->currentPage(),
-                'total_pages' => $data->lastPage()
-            ]
-        ]);
     }
 
     /**

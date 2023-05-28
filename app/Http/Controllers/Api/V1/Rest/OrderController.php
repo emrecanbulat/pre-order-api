@@ -64,53 +64,58 @@ class OrderController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $limit = $request->get('limit', 20);
-        $limit = min($limit, 100);
+        try {
+            $limit = $request->get('limit', 20);
+            $limit = min($limit, 100);
 
-        if (auth()->user()->isAdmin()) {
-            $query = Order::query();
-        } else {
-            $query = Order::where('user_id', auth()->user()->id);
+            if (auth()->user()->isAdmin()) {
+                $query = Order::query();
+            } else {
+                $query = Order::where('user_id', auth()->user()->id);
+            }
+
+            $query->leftJoin('users', 'users.id', '=', 'orders.user_id')
+                ->select('orders.*', 'users.name as user_full_name', 'users.email  as user_email', 'users.phone as user_phone', 'users.id as user_id');
+
+            if ($request->has('user_id') && !empty($request->user_id)) {
+                $query->where('user_id', $request->user_id);
+            }
+
+            if ($request->has('search') && !empty($request->search)) {
+                $search = $request->search;
+                $query->where(function (Builder $query) use ($search) {
+                    if (is_numeric($search)) {
+                        $query->orWhere('orders.id', $search);
+                        $query->orWhere('users.id', $search);
+                    }
+                    $query->orWhere('users.name', 'like', '%' . $search . '%');
+                    $query->orWhere('orders.status', 'like', '%' . $search . '%');
+                    return $query;
+                });
+            }
+
+            $data = Helper::getPaginationResults($query, $limit);
+
+            if (auth()->user()->isAdmin()) {
+                $data = OrderResourceAdmin::collection($data);
+            } else {
+                $data = OrderResourceUser::collection($data);
+            }
+
+            return new JsonResponse([
+                'data' => $data,
+                'paginate' => [
+                    'total' => $data->total(),
+                    'count' => $data->count(),
+                    'per_page' => $data->perPage(),
+                    'current_page' => $data->currentPage(),
+                    'total_pages' => $data->lastPage()
+                ]
+            ]);
+        } catch (Exception $exception) {
+            logger()->error($exception->getMessage());
+            return new JsonResponse(['message' => "Please check your request parameters and try again",], 400);
         }
-
-        $query->leftJoin('users', 'users.id', '=', 'orders.user_id')
-            ->select('orders.*', 'users.name as user_full_name');
-
-        if ($request->has('user_id') && !empty($request->user_id)) {
-            $query->where('user_id', $request->user_id);
-        }
-
-        if ($request->has('search') && !empty($request->search)) {
-            $search = $request->search;
-            $query->where(function (Builder $query) use ($search) {
-                if (is_numeric($search)) {
-                    $query->orWhere('orders.id', $search);
-                    $query->orWhere('users.id', $search);
-                }
-                $query->orWhere('users.name', 'like', '%' . $search . '%');
-                $query->orWhere('orders.status', 'like', '%' . $search . '%');
-                return $query;
-            });
-        }
-
-        $data = Helper::getPaginationResults($query, $limit);
-
-        if (auth()->user()->isAdmin()) {
-            $data = OrderResourceAdmin::collection($data);
-        } else {
-            $data = OrderResourceUser::collection($data);
-        }
-
-        return new JsonResponse([
-            'data' => $data,
-            'paginate' => [
-                'total' => $data->total(),
-                'count' => $data->count(),
-                'per_page' => $data->perPage(),
-                'current_page' => $data->currentPage(),
-                'total_pages' => $data->lastPage()
-            ]
-        ]);
     }
 
     /**
@@ -119,23 +124,30 @@ class OrderController extends Controller
      */
     public function show($id): JsonResponse
     {
-        if (auth()->user()->isAdmin()) {
-            $order = Order::find($id);
-            if (!empty($order)) {
-                $order->user_full_name = $order->user->name;
-                return new JsonResponse([
-                    'data' => new OrderResourceAdmin($order),
-                ]);
+        try {
+            if (auth()->user()->isAdmin()) {
+                $order = Order::find($id);
+                if (!empty($order)) {
+                    $order->user_full_name = $order->user->name;
+                    $order->user_email = $order->user->email;
+                    $order->user_phone = $order->user->phone;
+                    return new JsonResponse([
+                        'data' => new OrderResourceAdmin($order),
+                    ]);
+                }
+            } else {
+                $order = Order::where('user_id', auth()->user()->id)->where('id', $id)->first();
+                if (!empty($order)) {
+                    return new JsonResponse([
+                        'data' => new OrderResourceUser($order),
+                    ]);
+                }
             }
-        } else {
-            $order = Order::where('user_id', auth()->user()->id)->where('id', $id)->first();
-            if (!empty($order)) {
-                return new JsonResponse([
-                    'data' => new OrderResourceUser($order),
-                ]);
-            }
+            return new JsonResponse(['message' => 'Order not found'], 404);
+        } catch (Exception $exception) {
+            logger()->error($exception->getMessage());
+            return new JsonResponse(['message' => "Please check your request parameters and try again",], 400);
         }
-        return new JsonResponse(['message' => 'Order not found'], 404);
     }
 
     /**
@@ -150,7 +162,7 @@ class OrderController extends Controller
                 $order->status = $request->status;
                 $order->save();
             }
-            MessageHelper::sendMessage(MessageHelper::APPROVED_MESSAGE, $order->user->phone_number);
+            MessageHelper::sendMessage(MessageHelper::APPROVED_MESSAGE, $order->user->phone);
 
             return new JsonResponse(['message' => 'Order status updated successfully']);
         } catch (ConfigurationException $e) {
