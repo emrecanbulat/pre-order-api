@@ -43,3 +43,6 @@ php artisan migrate --seed
 ```bash
 php artisan serve
 ```
+
+
+**!! You can find the sample postman collection in the project.**
